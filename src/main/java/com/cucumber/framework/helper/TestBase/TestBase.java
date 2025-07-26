@@ -1,87 +1,87 @@
 package com.cucumber.framework.helper.TestBase;
 
+import com.cucumber.framework.configreader.ConfigReader;
 import com.cucumber.framework.configreader.PropertyFileReader;
-import com.cucumber.framework.configuration.browser.HeadlessBrowser;
+import com.cucumber.framework.configuration.browser.BrowserType;
+import com.cucumber.framework.configuration.browser.DriverFactory;
 import com.cucumber.framework.helper.Logger.LoggerHelper;
 import com.cucumber.framework.utility.DateTimeHelper;
 import com.cucumber.framework.utility.Excel;
 import com.cucumber.framework.utility.ResourceHelper;
 import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
 import org.openqa.selenium.*;
-import org.openqa.selenium.htmlunit.HtmlUnitDriver;
-import org.openqa.selenium.remote.BrowserType;
 
 import java.io.File;
 import java.io.IOException;
 
-import static com.cucumber.framework.configuration.browser.BrowserType.Headless;
+
 
 public class TestBase {
-    private final Logger log = LoggerHelper.getLogger(TestBase.class);
 
-    public static WebDriver driver;
-
+    private static final Logger log = LoggerHelper.getLogger(TestBase.class);
+    private static ThreadLocal<WebDriver> driver = new ThreadLocal<>();
     public String path;
     public Excel excelsheet_data;
 
-    public String takeScreenShot(String name) throws IOException {
-        if(driver instanceof HtmlUnitDriver) {
-            log.fatal("This is instance of HtmlUnitdriver  can not take the Screenshot");
-            return "";
-        }
-        File destDir=new File(ResourceHelper.getResourcePath("screenshots/")+ DateTimeHelper.getCurrentDate());
-        if(!destDir.exists())
-            destDir.mkdir();
-        File destPath=new File(destDir.getAbsolutePath() + System.getProperty("file.separator") + name + ".jpg");
+    // Set the driver instance in ThreadLocal
+    public void setDriver(WebDriver driverInstance) {
+        driver.set(driverInstance);
+    }
+
+    // Get current thread’s driver
+    public WebDriver getDriver() {
+        return driver.get();
+    }
+
+    // Initialize driver from config (browser + headless)
+    public void initializeDriver() {
+        ConfigReader config = new PropertyFileReader();
+        BrowserType browser = config.getBrowser();
+        boolean isHeadless = config.isHeadless();
+
+        DriverFactory factory = new DriverFactory();
+        WebDriver driverInstance = factory.createInstance(browser, isHeadless);
+        setDriver(driverInstance);
+    }
+
+    // Gracefully quit the driver
+    public void quitDriver() {
+        getDriver().quit();
+        driver.remove();
+    }
+
+    // Capture screenshot with timestamped file
+    public String takeScreenshot(String name) {
+        File srcFile = ((TakesScreenshot) getDriver()).getScreenshotAs(OutputType.FILE);
+        String filePath = ResourceHelper.getResourcePath("screenshots/")
+                + DateTimeHelper.getCurrentDate() + "/" + name + ".png";
         try {
-            FileUtils.copyFile(((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE),destPath);
-        } catch (IOException e){
-            log.error(e);
-            throw e;
+            File dest = new File(filePath);
+            dest.getParentFile().mkdirs(); // ensures parent directories exist
+            FileUtils.copyFile(srcFile, dest);
+            log.info("Screenshot saved at: " + filePath);
+        } catch (IOException e) {
+            log.error("Screenshot capture failed", e);
+            throw new RuntimeException(e);
         }
-        log.info(destPath.getAbsolutePath());
-        return destPath.getAbsolutePath();
+        return filePath;
     }
 
-    public WebElement getElement(By locator){
-       log.info(locator);
-       if(IsElementPresentQuick(locator))
-           return driver.findElement(locator);
-       try {
-           throw new NoSuchElementException("Element Not Found :"+locator);
-       } catch (RuntimeException re){
-           log.error(re);
-           throw re;
-
-       }
-    }
-
-    private boolean IsElementPresentQuick(By locator) {
-        boolean flag=driver.findElements(locator).size() >=1;
-        log.info(flag);
-        return flag;
-    }
-
-    public WebDriver getBrowserObject(BrowserType bType) throws Exception {
-    try{
-        log.info(bType);
-
-        switch (bType){
-
-            case Headless:
-                 HeadlessBrowser headlessBrowser =HeadlessBrowser.class.newInstance();
-                 return headlessBrowser.getChromeDriver(headlessBrowser.getChromeCapabilities());
-
-            default:
-                throw new Exception("Driver Not Found :"+ new PropertyFileReader().getBrowser());
-
+    // Safe way to get element with logging and exception
+    public WebElement getElement(By locator) {
+        log.info("Locating element: " + locator);
+        if (isElementPresentQuick(locator)) {
+            return getDriver().findElement(locator);
         }
-    } catch (Exception e){
-        log.equals(e);
-        throw e;
+        throw new NoSuchElementException("Element not found: " + locator);
     }
 
+    // Quick check for element presence
+    private boolean isElementPresentQuick(By locator) {
+        boolean exists = getDriver().findElements(locator).size() >= 1;
+        log.info("Element present: " + exists);
+        return exists;
     }
 
 }

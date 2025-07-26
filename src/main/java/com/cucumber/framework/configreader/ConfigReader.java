@@ -11,4 +11,6 @@ public interface ConfigReader {
     public int getExplicitWait();
     public BrowserType getBrowser();
 
+    public boolean isHeadless();
+
 }

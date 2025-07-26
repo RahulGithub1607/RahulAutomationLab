@@ -5,53 +5,64 @@ import com.cucumber.framework.utility.ResourceHelper;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Properties;
 
 public class PropertyFileReader implements ConfigReader {
-    private Properties prop=null;
+
+    private final Properties prop=new Properties();
 
     public PropertyFileReader(){
-    prop=new Properties();
-    try {
-        prop.load(ResourceHelper.getResourcePathInputStream(""));
-    } catch (IOException e) {
-        e.printStackTrace();
-    }
-    }
+        try(InputStream input=ResourceHelper.getResourcePathInputStream("config/config.properties")){
+            prop.load(input);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to Lpoafd the config file",e);
 
+        }
+    }
 
     @Override
     public String getUserNamne() {
-        return null;
+        return prop.getProperty("username");
     }
 
     @Override
     public String getPassword() {
-        return null;
+        return prop.getProperty("password");
     }
 
     @Override
     public String getWebsite(String webApp) {
-        return null;
+        return prop.getProperty("Test.url");
     }
 
     @Override
     public int getPageLoadTimeOut() {
-        return 0;
+        return Integer.parseInt(prop.getProperty("pageLoadTimeout"));
     }
 
     @Override
     public int getImplicitWait() {
-        return 0;
+        return Integer.parseInt(prop.getProperty("implicitWait"));
     }
 
     @Override
     public int getExplicitWait() {
-        return 0;
+        return Integer.parseInt(prop.getProperty("explicitWait"));
     }
 
     @Override
     public BrowserType getBrowser() {
-        return null;
+        String browser= prop.getProperty("browser").toUpperCase();
+        try {
+            return BrowserType.valueOf(browser);
+        } catch (IllegalArgumentException e) {
+            return BrowserType.CHROME; // default fallback
+        }
+    }
+
+    @Override
+    public boolean isHeadless() {
+        return Boolean.parseBoolean(prop.getProperty("headless","false"));
     }
 }
