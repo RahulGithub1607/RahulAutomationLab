@@ -1,9 +1,10 @@
 package stepdefinations;
 
 import com.cucumber.framework.helper.TestBase.TestBase;
+import io.cucumber.java.After;
+import io.cucumber.java.Before;
 import io.cucumber.java.Scenario;
-import org.junit.After;
-import org.junit.Before;
+
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 
@@ -13,6 +14,7 @@ public class Hooks {
 
     @Before
     public void beforeScenario(){
+        System.out.println(">>> [Hooks] Before Scenario - initializing driver");
         // This will initilaize the driver using config + Driverfactory
         base.initializeDriver();
 
